@@ -1,7 +1,4 @@
 from speechbrain.pretrained import EncoderDecoderASR
-import matplotlib.pyplot as plt
-from scipy import signal
-from scipy.io import wavfile
 import glob
 import torch
 import time
@@ -9,10 +6,8 @@ from pydub import AudioSegment
 import os
 import tempfile
 from tqdm import tqdm
-import pydub
 from pydub.silence import detect_silence
 import librosa
-import soundfile as sf
 import numpy as np
 from typing import Optional
 

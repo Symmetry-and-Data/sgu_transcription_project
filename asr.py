@@ -140,6 +140,7 @@ class ASRModel(EncoderDecoderASR):
             os.remove(output_path)
 
         with tempfile.TemporaryDirectory() as directory:
+            # TODO: I think we want to stop this from trying to contact the internet. I think it's producing junk
             chunk_paths, split_points = self.split_audio(path, directory, **kwargs)
 
             batch_transcriptions = []

@@ -48,7 +48,7 @@ class ASRModel(EncoderDecoderASR):
         if not os.path.exists(target_directory):
             raise OSError(f"Directory Not Found target_directory={target_directory}")
         # Using librosa because it handles bitrate conversions
-        y, s = librosa.load('_assets/SGU884-training-Bob.wav', sr=16000)
+        y, s = librosa.load(unsplit_file, sr=16000)
         audio_segment = librosa_to_pydub(y, s)
 
         splitting_successful = False
@@ -166,10 +166,9 @@ def main():
                                       savedir="pretrained_models/asr-transformer-transformerlm-librispeech",
                                       run_opts={"device": "cuda:0"})
 
-    asr_model.transcribe_file("_assets/SGU884-training-Steve.wav",
-                                              output_path="outputs/SGU884-training-Steve.txt",
-                                              max_batch_seconds=20)
-
+    asr_model.transcribe_file("_assets/SGU883-training-Cara.wav",
+                              output_path="outputs/SGU883-training-Cara.txt",
+                              max_batch_seconds=20)
 
 
 if __name__ == "__main__":

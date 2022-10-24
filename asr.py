@@ -64,8 +64,7 @@ class ASRModel(EncoderDecoderASR):
             last_split = [0, 0]
             split_points = [0]
             target = max_batch_seconds * 1000 - min_silence_len // 2
-            for start_time, end_time in tqdm(silent_bits,
-                                             desc="Search silent periods for good split points"):
+            for start_time, end_time in silent_bits:
                 if target < start_time:
                     # + min_silence_len // 2 makes it as large as possible while keeping a reasonable amount of silence
                     split_point_candidate = last_split[1] - min_silence_len // 2
@@ -107,8 +106,7 @@ class ASRModel(EncoderDecoderASR):
 
         split_chunk_paths = []
 
-        for i, (split_point_start, split_point_end) in tqdm(enumerate(zip(split_points, split_points[1:])),
-                                                            desc="Exporting chunks"):
+        for i, (split_point_start, split_point_end) in enumerate(zip(split_points, split_points[1:])):
             # Export the audio chunk with new bitrate.
             # print(f"Exporting chunk {i}")
             file_base_name = os.path.splitext(os.path.basename(unsplit_file))[0]
@@ -167,8 +165,8 @@ def main():
                                       savedir="pretrained_models/asr-transformer-transformerlm-librispeech",
                                       run_opts={"device": "cuda:0"})
 
-    transcription = asr_model.transcribe_file("_assets/SGU884-training-Bob.wav",
-                                              output_path="outputs/SGU884-training-Bob.txt",
+    asr_model.transcribe_file("_assets/SGU884-training-Steve.wav",
+                                              output_path="outputs/SGU884-training-Steve.txt",
                                               max_batch_seconds=20)
 
 

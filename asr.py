@@ -145,7 +145,7 @@ class ASRModel(EncoderDecoderASR):
 
             batch_transcriptions = []
             for chunk_path in tqdm(chunk_paths, desc="Transcribing Chunks"):
-                waveform = self.load_audio(chunk_path)
+                waveform = self.load_audio(chunk_path, savedir=directory)
                 # Fake a batch:
                 batch = waveform.unsqueeze(0)
                 rel_length = torch.tensor([1.0])

@@ -1,3 +1,4 @@
+import speechbrain.decoders
 from speechbrain.pretrained import EncoderDecoderASR
 import glob
 import torch
@@ -9,7 +10,7 @@ from tqdm import tqdm
 from pydub.silence import detect_silence
 import librosa
 import numpy as np
-from typing import Optional
+from typing import Optional, List, Tuple
 
 
 def clip(number: float, lower_bond: float, upper_bound: float) -> float:
@@ -39,8 +40,13 @@ class ASRModel(EncoderDecoderASR):
         super().__init__(*args, **kwargs)
 
     @staticmethod
-    def split_audio(unsplit_file: str, target_directory: str, min_batch_seconds: int = 10, max_batch_seconds: int = 20,
-                    min_silence_len: int = 350, silence_thresh: int = -30, tries: int = 5):
+    def split_audio(unsplit_file: str,
+                    target_directory: str,
+                    min_batch_seconds: int = 10,
+                    max_batch_seconds: int = 20,
+                    min_silence_len: int = 350,
+                    silence_thresh: int = -30,
+                    tries: int = 5) -> Tuple[List[str], List[float]]:
         if tries <= 0:
             raise ValueError(f"Parameter tries ({tries}) should be greater than 0")
         if not os.path.exists(unsplit_file):
@@ -117,10 +123,9 @@ class ASRModel(EncoderDecoderASR):
                 format="wav"
             )
             split_chunk_paths.append(split_chunk_path)
-
         return split_chunk_paths, split_points
 
-    def transcribe_file(self, path: str, output_path: Optional[str] = None, **kwargs):
+    def transcribe_file(self, path: str, output_path: Optional[str] = None, **kwargs) -> str:
         """Transcribes the given audiofile into a sequence of words. Modified from base to do splitting
 
         Arguments
@@ -140,7 +145,7 @@ class ASRModel(EncoderDecoderASR):
             os.remove(output_path)
 
         with tempfile.TemporaryDirectory() as directory:
-            chunk_paths, split_points = self.split_audio(path, directory, **kwargs)
+            chunk_paths, _ = self.split_audio(path, directory, **kwargs)
 
             batch_transcriptions = []
             for chunk_path in tqdm(chunk_paths, desc="Transcribing Chunks"):
@@ -160,14 +165,16 @@ class ASRModel(EncoderDecoderASR):
         return " ".join(batch_transcriptions)
 
 
-def main():
+def main() -> int:
     asr_model = ASRModel.from_hparams(source="speechbrain/asr-transformer-transformerlm-librispeech",
                                       savedir="pretrained_models/asr-transformer-transformerlm-librispeech",
                                       run_opts={"device": "cuda:0"})
 
-    asr_model.transcribe_file("_assets/SGU883-training-Cara.wav",
-                              output_path="outputs/SGU883-training-Cara.txt",
+    asr_model.transcribe_file("_assets/SGU884-training-Bob.wav",
+                              output_path="outputs/SGU884-training-Bob.txt",
                               max_batch_seconds=20)
+
+    return 0
 
 
 if __name__ == "__main__":

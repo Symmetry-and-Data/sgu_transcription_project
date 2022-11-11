@@ -4,3 +4,10 @@ This project contains some code for automatically transcribing the SGU podcast i
 TODO: 
 1) Punctuation and capitalization (might need another model here)
 2) Improve performance either via fine tuning or a global model built on top based on writings from skeptics
+
+
+Example usage:
+Basic Usage:
+python -m asr -s "_assets/SGU884-training-Bob.wav" -o "outputs/SGU884-training-Bob.txt"
+More advanced:
+python -m asr -s "_assets/SGU884-training-Bob.wav" -o "outputs/SGU884-training-Bob.txt" --batch_seconds 25 --cpu

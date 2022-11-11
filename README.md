@@ -4,4 +4,3 @@ This project contains some code for automatically transcribing the SGU podcast i
 TODO: 
 1) Punctuation and capitalization (might need another model here)
 2) Improve performance either via fine tuning or a global model built on top based on writings from skeptics
-3) Make a CLI version

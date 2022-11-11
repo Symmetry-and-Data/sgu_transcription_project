@@ -8,6 +8,10 @@ TODO:
 
 Example usage:
 Basic Usage:
+```
 python -m asr -s "_assets/SGU884-training-Bob.wav" -o "outputs/SGU884-training-Bob.txt"
+```
 More advanced:
+```
 python -m asr -s "_assets/SGU884-training-Bob.wav" -o "outputs/SGU884-training-Bob.txt" --batch_seconds 25 --cpu
+```

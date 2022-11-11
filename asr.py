@@ -15,6 +15,15 @@ import argparse
 
 
 def clip(number: float, lower_bond: float, upper_bound: float) -> float:
+    """
+    Takes a number, if it is larger than upper_bound, set it to the upper_bound. If it smaller than lower_bound, set it
+    to lower_bound. If it's in between, then leave it alone.
+
+    :param number: number to be clipped
+    :param lower_bond: Smallest value of output
+    :param upper_bound: Largest value of output
+    :return:
+    """
     if upper_bound < lower_bond:
         raise ValueError(f"Lower bound {lower_bond} must be smaller than upper bound {upper_bound}")
     return min(max(number, lower_bond), upper_bound)
@@ -48,6 +57,26 @@ class ASRModel(EncoderDecoderASR):
                     min_silence_len: int = 350,
                     silence_thresh: int = -30,
                     tries: int = 5) -> Tuple[List[str], List[float]]:
+        """
+        Takes a wave file path as input, and then breaks it down into smaller chunks between min_batch_seconds and
+        max_batch_seconds. It will try to split up the file only at places of silence so that it doesn't break a single
+        word into two files. Used to extend class to handle larger files which EncoderDecoderASR will just try to
+        process all at once
+
+        :param unsplit_file: source file that we want to split into smaller pieces
+        :param target_directory: the directory where the split-up files will be saved
+        :param min_batch_seconds: a lower bound on the length in seconds of each split-up file
+        :param max_batch_seconds: an upper bound on the length in seconds of each split-up file
+        :param min_silence_len: the minimum length of a silent segment in ms that the algorithm will split on. If it
+            fails to get segments of the right range of lengths, it will adaptively reduce this number.
+        :param silence_thresh: the threshold for how loud of sound can be still considered a silent segment. If it
+            fails to get segments of the right range of lengths, it will adaptively increase this number.
+        :param tries: the number of times that, if the algorithm fails to find a splitting with particular constraints,
+            it'll adjust the min_silence_len and silence_thresh and try again.
+        :return:
+            split_chunk_paths (list): a tuples of paths to the split up wave files
+            split_points (list): the places in the original audio where splits happened. Currently unused
+        """
         if tries <= 0:
             raise ValueError(f"Parameter tries ({tries}) should be greater than 0")
         if not os.path.exists(unsplit_file):
@@ -79,7 +108,7 @@ class ASRModel(EncoderDecoderASR):
                         print(f"No acceptable splits on silence for min_silence_len = {min_silence_len} and "
                               f"silence_thresh={silence_thresh}")
                         min_silence_len = int(min_silence_len * 0.7)
-                        silence_thresh = int(silence_thresh * 0.7)
+                        silence_thresh = int(silence_thresh * 1.3)
                         print(
                             f"Trying again with min_silence_len = {min_silence_len} and silence_thresh={silence_thresh}")
                         break
@@ -127,7 +156,7 @@ class ASRModel(EncoderDecoderASR):
         return split_chunk_paths, split_points
 
     def transcribe_file(self, path: str, output_path: Optional[str] = None, **kwargs) -> str:
-        """Transcribes the given audiofile into a sequence of words. Modified from base to do splitting
+        """Transcribes the given audiofile into a sequence of words. Modified from base to do audio file splitting
 
         Arguments
         ---------

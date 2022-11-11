@@ -6,7 +6,8 @@ TODO:
 2) Improve performance either via fine tuning or a global model built on top based on writings from skeptics
 
 
-Example usage:
+### Examples:
+
 Basic Usage:
 ```
 python -m asr -s "_assets/SGU884-training-Bob.wav" -o "outputs/SGU884-training-Bob.txt"

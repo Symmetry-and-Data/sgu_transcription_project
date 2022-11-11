@@ -11,6 +11,7 @@ from pydub.silence import detect_silence
 import librosa
 import numpy as np
 from typing import Optional, List, Tuple
+import argparse
 
 
 def clip(number: float, lower_bond: float, upper_bound: float) -> float:
@@ -165,15 +166,47 @@ class ASRModel(EncoderDecoderASR):
         return " ".join(batch_transcriptions)
 
 
-def main() -> int:
+def get_parser():
+    parser = argparse.ArgumentParser(
+        prog='SGU Automatic Speech Recognition',
+        description='Wrapper for speech brain pretrained models. Takes an audio file, breaks it down into chunks at '
+                    'silence points, transcribes each audio piece, then combines them and saves to .txt file')
+
+    parser.add_argument('--source_path', '-s',
+                        type=str,
+                        default="_assets/SGU884-training-Bob.wav",
+                        help='path to source file to be transcribed (should be .wav)')
+
+    parser.add_argument('--output_path', '-o',
+                        type=str,
+                        default="outputs/SGU884-training-Bob.txt",
+                        help='path to output file (should be .txt)')
+
+    parser.add_argument('--batch_seconds',
+                        type=int,
+                        default=20,
+                        help="maximum number of seconds in a batch. Choice may depend on your VRAM. default=20")
+
+    parser.add_argument('--cpu',
+                        action='store_true',
+                        default=False,
+                        help="Flag to force a run on the CPU instead of CUDA. Very slow. If false, will check to see"
+                             "if a cuda device is available, and use it if so. default=False")
+
+    return parser
+
+
+def main(argv=None) -> int:
+    parser = get_parser()
+    args = parser.parse_args(argv)
+    device = "cuda" if (torch.cuda.is_available() and not args.cpu) else "cpu"
     asr_model = ASRModel.from_hparams(source="speechbrain/asr-transformer-transformerlm-librispeech",
                                       savedir="pretrained_models/asr-transformer-transformerlm-librispeech",
-                                      run_opts={"device": "cuda:0"})
+                                      run_opts={"device": device})
 
-    asr_model.transcribe_file("_assets/SGU884-training-Bob.wav",
-                              output_path="outputs/SGU884-training-Bob.txt",
-                              max_batch_seconds=20)
-
+    asr_model.transcribe_file(args.source_path,
+                              output_path=args.output_path,
+                              max_batch_seconds=args.batch_seconds)
     return 0
 
 

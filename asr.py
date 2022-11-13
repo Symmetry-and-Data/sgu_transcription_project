@@ -214,10 +214,10 @@ class ASRModel(EncoderDecoderASR):
                 f.write(txt)
         return txt
 
-    @staticmethod
-    def punctuate(raw_transcript: str):
-        from punctuation import RestorePuncts
-        return RestorePuncts().punctuate(raw_transcript)
+    # @staticmethod
+    # def punctuate(raw_transcript: str):
+    #     from punctuation import RestorePuncts
+    #     return RestorePuncts().punctuate(raw_transcript)
 
 
 def get_parser():

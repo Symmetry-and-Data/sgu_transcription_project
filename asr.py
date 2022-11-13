@@ -186,6 +186,7 @@ class ASRModel(EncoderDecoderASR):
         with tempfile.TemporaryDirectory() as directory:
             chunk_paths, split_points = self.split_audio(path, directory, **kwargs)
             batch_transcriptions = []
+            chunk_paths = chunk_paths[:3]
             for chunk_path in tqdm(chunk_paths, desc="Transcribing Chunks"):
                 waveform = self.load_audio(chunk_path, savedir=directory)
                 # Fake a batch:

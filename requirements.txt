@@ -1,5 +1,5 @@
-numpy
-torch
+# torch
+# simpletransformers
 tqdm
 pydub
 librosa

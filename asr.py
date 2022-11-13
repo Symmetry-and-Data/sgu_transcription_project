@@ -12,6 +12,7 @@ import librosa
 import numpy as np
 from typing import Optional, List, Tuple
 import argparse
+import datetime
 
 
 def clip(number: float, lower_bond: float, upper_bound: float) -> float:
@@ -155,7 +156,11 @@ class ASRModel(EncoderDecoderASR):
             split_chunk_paths.append(split_chunk_path)
         return split_chunk_paths, split_points
 
-    def transcribe_file(self, path: str, output_path: Optional[str] = None, **kwargs) -> str:
+    def transcribe_file(self, path: str,
+                        output_path: Optional[str] = None,
+                        include_timestamps: bool = False,
+                        # punctuate: bool = False,
+                        **kwargs) -> str:
         """Transcribes the given audiofile into a sequence of words. Modified from base to do audio file splitting
 
         Arguments
@@ -165,6 +170,10 @@ class ASRModel(EncoderDecoderASR):
         output_path : str
             Optional parameter for a file to save the transcription to. This will save as it goes, but will delete any
             previous file with the same path
+        include_timestamps : bool
+            whether to add timestamps to the transcript at each break point
+        punctuate : bool
+            whether to use a large language model to punctuate the raw transcript
 
         Returns
         -------
@@ -175,8 +184,7 @@ class ASRModel(EncoderDecoderASR):
             os.remove(output_path)
 
         with tempfile.TemporaryDirectory() as directory:
-            chunk_paths, _ = self.split_audio(path, directory, **kwargs)
-
+            chunk_paths, split_points = self.split_audio(path, directory, **kwargs)
             batch_transcriptions = []
             for chunk_path in tqdm(chunk_paths, desc="Transcribing Chunks"):
                 waveform = self.load_audio(chunk_path, savedir=directory)
@@ -186,13 +194,29 @@ class ASRModel(EncoderDecoderASR):
                 predicted_words, predicted_tokens = self.transcribe_batch(
                     batch, rel_length
                 )
-                batch_transcriptions.append(predicted_words[0])
-                if output_path is not None:
-                    with open(output_path, "at") as f:
-                        f.write(batch_transcriptions[-1])
+                batch_transcriptions.append(predicted_words[0].lower())
                 os.remove(chunk_path)
 
-        return " ".join(batch_transcriptions)
+
+        if include_timestamps:
+            timestamps = [str(datetime.timedelta(seconds=split_point // 1000)) for split_point in split_points[:-1]]
+            txt = "\n".join([f"[{timestamp}] {transcription}"
+                             for timestamp, transcription in zip(timestamps, batch_transcriptions)])
+        else:
+            txt = " ".join(batch_transcriptions)
+
+        # if punctuate:
+        #     txt = self.punctuate(txt)
+
+        if output_path is not None:
+            with open(output_path, "wt") as f:
+                f.write(txt)
+        return txt
+
+    @staticmethod
+    def punctuate(raw_transcript: str):
+        from punctuation import RestorePuncts
+        return RestorePuncts().punctuate(raw_transcript)
 
 
 def get_parser():
@@ -208,7 +232,7 @@ def get_parser():
 
     parser.add_argument('--output_path', '-o',
                         type=str,
-                        default="outputs/SGU884-training-Bob.txt",
+                        default=None,
                         help='path to output file (should be .txt)')
 
     parser.add_argument('--batch_seconds',
@@ -222,6 +246,24 @@ def get_parser():
                         help="Flag to force a run on the CPU instead of CUDA. Very slow. If false, will check to see"
                              "if a cuda device is available, and use it if so. default=False")
 
+    parser.add_argument('--timestamps',
+                        action='store_true',
+                        default=False,
+                        help="Determines whether to save timestamps in the transcription, based on time in the loaded "
+                             "file default=False"
+                        )
+
+    # parser.add_argument('--punctuate',
+    #                     action='store_true',
+    #                     default=False,
+    #                     help="Determines whether to use a large language model to punctuate the raw transcription. "
+    #                          "default=False."
+    #                          "\n"
+    #                          "Warning, there may be some compatibility issues with speechbrain and cuda, so I did some"
+    #                          "sketchy stuff to prevent other parts from breaking if packages are satisfied."
+    #                          " "
+    #                     )
+
     return parser
 
 
@@ -233,9 +275,12 @@ def main(argv=None) -> int:
                                       savedir="pretrained_models/asr-transformer-transformerlm-librispeech",
                                       run_opts={"device": device})
 
-    asr_model.transcribe_file(args.source_path,
-                              output_path=args.output_path,
-                              max_batch_seconds=args.batch_seconds)
+    print(asr_model.transcribe_file(args.source_path,
+                                    output_path=args.output_path,
+                                    max_batch_seconds=args.batch_seconds,
+                                    include_timestamps=args.timestamps,
+                                    # punctuate=args.punctuate
+                                    ))
     return 0
 
 

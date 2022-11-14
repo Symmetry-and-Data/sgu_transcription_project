@@ -1,8 +1,4 @@
-import speechbrain.decoders
-from speechbrain.pretrained import EncoderDecoderASR
-import glob
 import torch
-import time
 from pydub import AudioSegment
 import os
 import tempfile
@@ -13,6 +9,15 @@ import numpy as np
 from typing import Optional, List, Tuple
 import argparse
 import datetime
+import warnings
+
+try:
+    from rpunct import RestorePuncts
+except ImportError:
+    warnings.warn(ImportWarning("rpunct has not been install. Punctuation flag unavailable"))
+# speechbrain must be imported after rpunct or rpunct will throw a memory error. Somebody did something they shouldn't
+# have.
+from speechbrain.pretrained import EncoderDecoderASR
 
 
 def clip(number: float, lower_bond: float, upper_bound: float) -> float:
@@ -111,14 +116,15 @@ class ASRModel(EncoderDecoderASR):
                         min_silence_len = int(min_silence_len * 0.7)
                         silence_thresh = int(silence_thresh * 1.3)
                         print(
-                            f"Trying again with min_silence_len = {min_silence_len} and silence_thresh={silence_thresh}")
+                            f"Trying again with min_silence_len = {min_silence_len} "
+                            f"and silence_thresh={silence_thresh}")
                         break
                     else:
                         split_points.append(split_point_candidate)
                         target = split_point_candidate + max_batch_seconds * 1000 - min_silence_len // 2
                 if start_time <= target <= end_time:
-                    # If we're lucky and the target is exactly in a silent spot, just make sure we have enough silence on
-                    # either side
+                    # If we're lucky and the target is exactly in a silent spot, just make sure we have enough silence
+                    # on either side
                     split_point_candidate = clip(target,
                                                  lower_bond=start_time + min_silence_len // 2,
                                                  upper_bound=end_time - min_silence_len // 2)
@@ -159,7 +165,7 @@ class ASRModel(EncoderDecoderASR):
     def transcribe_file(self, path: str,
                         output_path: Optional[str] = None,
                         include_timestamps: bool = False,
-                        # punctuate: bool = False,
+                        punctuate: bool = False,
                         **kwargs) -> str:
         """Transcribes the given audiofile into a sequence of words. Modified from base to do audio file splitting
 
@@ -183,10 +189,12 @@ class ASRModel(EncoderDecoderASR):
         if output_path is not None and os.path.exists(output_path):
             os.remove(output_path)
 
+        if punctuate and include_timestamps:
+            raise NotImplementedError("Punctuation has not been implemented for cases when timestamps are included")
+
         with tempfile.TemporaryDirectory() as directory:
             chunk_paths, split_points = self.split_audio(path, directory, **kwargs)
             batch_transcriptions = []
-            chunk_paths = chunk_paths[:3]
             for chunk_path in tqdm(chunk_paths, desc="Transcribing Chunks"):
                 waveform = self.load_audio(chunk_path, savedir=directory)
                 # Fake a batch:
@@ -198,7 +206,6 @@ class ASRModel(EncoderDecoderASR):
                 batch_transcriptions.append(predicted_words[0].lower())
                 os.remove(chunk_path)
 
-
         if include_timestamps:
             timestamps = [str(datetime.timedelta(seconds=split_point // 1000)) for split_point in split_points[:-1]]
             txt = "\n".join([f"[{timestamp}] {transcription}"
@@ -206,18 +213,17 @@ class ASRModel(EncoderDecoderASR):
         else:
             txt = " ".join(batch_transcriptions)
 
-        # if punctuate:
-        #     txt = self.punctuate(txt)
+        if punctuate:
+            txt = self.punctuate(txt)
 
         if output_path is not None:
             with open(output_path, "wt") as f:
                 f.write(txt)
         return txt
 
-    # @staticmethod
-    # def punctuate(raw_transcript: str):
-    #     from punctuation import RestorePuncts
-    #     return RestorePuncts().punctuate(raw_transcript)
+    @staticmethod
+    def punctuate(raw_transcript: str):
+        return RestorePuncts().punctuate(raw_transcript)
 
 
 def get_parser():
@@ -251,19 +257,15 @@ def get_parser():
                         action='store_true',
                         default=False,
                         help="Determines whether to save timestamps in the transcription, based on time in the loaded "
-                             "file default=False"
+                             "file (default=False)"
                         )
 
-    # parser.add_argument('--punctuate',
-    #                     action='store_true',
-    #                     default=False,
-    #                     help="Determines whether to use a large language model to punctuate the raw transcription. "
-    #                          "default=False."
-    #                          "\n"
-    #                          "Warning, there may be some compatibility issues with speechbrain and cuda, so I did some"
-    #                          "sketchy stuff to prevent other parts from breaking if packages are satisfied."
-    #                          " "
-    #                     )
+    parser.add_argument('--punctuate',
+                        action='store_true',
+                        default=False,
+                        help="Determines whether to use a large language model to punctuate the raw transcription."
+                             "Currently incompatible with timestamps flag. (default=False)"
+                        )
 
     return parser
 
@@ -280,7 +282,7 @@ def main(argv=None) -> int:
                                     output_path=args.output_path,
                                     max_batch_seconds=args.batch_seconds,
                                     include_timestamps=args.timestamps,
-                                    # punctuate=args.punctuate
+                                    punctuate=args.punctuate
                                     ))
     return 0
 
